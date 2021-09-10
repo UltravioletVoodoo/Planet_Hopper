@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random=UnityEngine.Random;
 
 public class proceduralGeneration : MonoBehaviour
 {
@@ -8,6 +10,7 @@ public class proceduralGeneration : MonoBehaviour
     public int radius, dirtThickness;
     public float goldOdds, goldVeinBonus;
     public GameObject Grass, Dirt, Stone, Gold;
+    public PolygonCollider2D collider;
     enum objectTypes {
         empty,
         grass,
@@ -20,24 +23,56 @@ public class proceduralGeneration : MonoBehaviour
         objectTypes[,] planetArray = generatePlanetArray();
         planetArray = addGoldVeins(planetArray);
         createPlanetGameObjects(planetArray);
+        generateCollider(planetArray);
+    }
+
+    bool anyEdgesOutside(int x, int y, objectTypes[,] planetArray) {
+        if (x + 1 == planetArray.GetLength(0)) return true;
+        if (x - 1 < 0) return true;
+        if (y + 1 == planetArray.GetLength(1)) return true;
+        if (y - 1 < 0) return true;
+        return false;
+    }
+
+    bool isExposedTile(int x, int y, objectTypes[,] planetArray) {
+        if (planetArray[x, y] != objectTypes.empty) {
+            // This tile is filled
+            if (anyEdgesOutside(x, y, planetArray)) {
+                return true;
+            }
+            if (planetArray[x, y + 1] == objectTypes.empty
+            || planetArray[x + 1, y] == objectTypes.empty
+            || planetArray[x, y - 1] == objectTypes.empty
+            || planetArray[x - 1, y] == objectTypes.empty) {
+                // At least one of the edges has an air block next to it
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void generateCollider(objectTypes[,] planetArray) {
+        List<Vector2> points = new List<Vector2>();
+        for (int x = 0; x <= radius*2; x++) {
+            int gameX = convertToGameRepresentation(x);
+            for (int y = 0; y <= radius*2; y++) {
+                int gameY = convertToGameRepresentation(y);
+
+                if (isExposedTile(x, y, planetArray)) { // If the tile is exposed
+                    points.Add(new Vector2(gameX, gameY)); // Add the tile to the list
+                }
+            }
+        }
+        Vector2[] pointsArray = points.ToArray();
+        collider.SetPath(0, pointsArray);
     }
 
     int convertToGameRepresentation(int value) {
-        Debug.Log("Received" + value);
-        if (value > radius) {
-            value -= radius;
-            value *= -1;
-        }
-        Debug.Log("Returning" + value);
-        return value; 
+        return value - radius;
     }
 
     int convertToArrayRepresentation(int value) {
-        if (value < 0) {
-            value *= -1;
-            value += radius;
-        }
-        return value;
+        return value + radius;
     }
 
     objectTypes[,] generatePlanetArray() {
