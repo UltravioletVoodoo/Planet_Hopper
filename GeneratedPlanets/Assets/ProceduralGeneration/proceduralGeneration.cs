@@ -11,6 +11,7 @@ public class proceduralGeneration : MonoBehaviour
     public float goldOdds, goldVeinBonus;
     public GameObject Grass, Dirt, Stone, Gold;
     public PolygonCollider2D collider;
+    public EdgeCollider2D edgeCollider;
     enum objectTypes {
         empty,
         grass,
@@ -51,6 +52,32 @@ public class proceduralGeneration : MonoBehaviour
         return false;
     }
 
+    float getAngleFromPoint(Vector2 point) {
+        if (point.x >= 0 && point.y > 0) { // Quadrant 1: top right
+            return Mathf.Rad2Deg * Mathf.Atan(Mathf.Abs(point.x) / Mathf.Abs(point.y));
+        }
+        if (point.x > 0 && point.y <= 0) { // Quadrant 2: bottom right
+            return Mathf.Rad2Deg * Mathf.Atan(Mathf.Abs(point.y) / Mathf.Abs(point.x)) + 90;
+        }
+        if (point.x <= 0 && point.y < 0) { // Quadrant 3: bottom left
+            return Mathf.Rad2Deg * Mathf.Atan(Mathf.Abs(point.x) / Mathf.Abs(point.y)) + 180;
+        }
+        // No check required. Quadrant 4: top left
+        return Mathf.Rad2Deg * Mathf.Atan(Mathf.Abs(point.y) / Mathf.Abs(point.x)) + 270;
+    }
+
+    int sortClockWisePoints(Vector2 point1, Vector2 point2) {
+        float angle1 = getAngleFromPoint(point1);
+        float angle2 = getAngleFromPoint(point2);
+        if (angle1 > angle2) return 1;
+        if (angle1 < angle2) return -1;
+        // if we get here then they have equal angle, we use magnitude now to determine order
+        if (point1.magnitude > point2.magnitude) return 1;
+        if (point1.magnitude < point2.magnitude) return -1;
+        // If we get here then they have equal angle AND magnitude... are they the same point? They are equal
+        return 0;
+    }
+
     void generateCollider(objectTypes[,] planetArray) {
         List<Vector2> points = new List<Vector2>();
         for (int x = 0; x <= radius*2; x++) {
@@ -63,8 +90,12 @@ public class proceduralGeneration : MonoBehaviour
                 }
             }
         }
+        // Sort the points in clockwise order
+        points.Sort(sortClockWisePoints);
+
         Vector2[] pointsArray = points.ToArray();
         collider.SetPath(0, pointsArray);
+        edgeCollider.SetPoints(points);
     }
 
     int convertToGameRepresentation(int value) {
